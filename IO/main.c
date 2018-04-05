@@ -11,14 +11,15 @@
 
 #define PREMBLE 0x00 // MAN CODE: 0x00, NRZ CODE: 0xAAAA 
 #define SFID 0x01 // MAN CODE: 0x01, NRZ CODE: 0xAAA9
-#define LENGTH 9
+#define LENGTH 6
 
 uint8_t lookUp[16] = {0xAA, 0xA9, 0xA6, 0xA5, 0x9A, 0x99, 0x96, 0x95, 0x6A, 0x69, 0x66, 0x65, 0x5A, 0x59, 0x56, 0x55};
 
 volatile char flag = 1;
 volatile uint8_t p_uint8 = 0;
-uint8_t data[LENGTH] = {PREMBLE, PREMBLE, PREMBLE, PREMBLE, PREMBLE, SFID, 0xCC, 0xCC, 0x01};
+uint8_t data[LENGTH] = {PREMBLE, PREMBLE, SFID, 0x14, 0x13, 0x12};
 uint8_t man_data[LENGTH*2];
+uint8_t output = 0;
 
 void Timer_Init()
 {
@@ -28,7 +29,7 @@ void Timer_Init()
 	TCCR1B = 0;     // same for TCCR1B
 	
 	// set compare match register to desired timer count:
-	OCR1A = 125; //symbol length 125us
+	OCR1A = 125 + 1; //symbol length 125us
 	// turn on CTC mode:
 	TCCR1B |= (1 << WGM12);
 	// Set CS11 bits for 8 prescaler:
@@ -48,18 +49,15 @@ void Timer_Close()
 
 ISR(TIMER1_COMPA_vect)
 {
-	uint8_t counter = p_uint8 >> 3;
-	if ((counter) == 5) {
+	if ((p_uint8++ >> 3) == LENGTH*2) {
 		Timer_Close();
 		flag = 0;
 		PORTA = 0x01;
 		return;
 	}
 
-
-	PORTA =  man_data[counter] >> ((8 + ~p_uint8) & 0x07);
-	//PORTA = ~PORTA;
-	p_uint8 = p_uint8 + 1;
+	PORTA = output;
+	output = man_data[p_uint8 >> 3] >> ((8 + ~p_uint8) & 0x07);
 }
 
 int main(void)
@@ -73,6 +71,7 @@ int main(void)
 	}
 
 	flag = 1;
+	output = man_data[p_uint8 >> 3] >> ((8 + ~p_uint8) & 0x07);
 	Timer_Init();
 	//while(flag){};
 	
