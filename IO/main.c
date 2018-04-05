@@ -28,7 +28,7 @@ void Timer_Init()
 	TCCR1B = 0;     // same for TCCR1B
 	
 	// set compare match register to desired timer count:
-	OCR1A = 125; //symbol length 125us
+	OCR1A = 125+1; //symbol length 125us
 	// turn on CTC mode:
 	TCCR1B |= (1 << WGM12);
 	// Set CS11 bits for 8 prescaler:
@@ -42,17 +42,18 @@ void Timer_Init()
 ISR(TIMER1_COMPA_vect)
 {
 	uint8_t i = p_uint16 >> 4;
-	static uint16_t converted_data = 0;
-	if ((p_uint16 & 0x000F) == 0x0000)
-		converted_data = (lookUp[data[i] >> 4]) | (lookUp[data[i] & 0x0F] << 8);
-    PORTA = (uint8_t)((converted_data >> (15 - (p_uint16++ & 0x000F))) & 0x0001);
-	
-	if ((p_uint16 >> 4) == 2) {
+	if (i == 3) {
 		cli();
 		TCCR1A = 0;     // set entire TCCR1A register to 0
 		TCCR1B = 0;     // same for TCCR1B
+		PORTA = 0x00;
+		return;
 	}
-	//PORTA = ~PORTA;
+	
+	static uint16_t converted_data = 0;
+	if ((p_uint16 & 0x000F) == 0x0000)
+		converted_data = (lookUp[data[i] >> 4] << 8 ) | lookUp[data[i] & 0x0F] ;
+    PORTA = (uint8_t)((converted_data >> (15 - (p_uint16++ & 0x000F))) & 0x0001);
 }
 
 int main(void)
